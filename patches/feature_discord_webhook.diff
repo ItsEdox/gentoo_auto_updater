@@ -1,0 +1,57 @@
+diff --git a/gentoo_auto_update.sh b/gentoo_auto_update.sh
+index 53e6850..bfbf004 100755
+--- a/gentoo_auto_update.sh
++++ b/gentoo_auto_update.sh
+@@ -8,6 +8,30 @@ fi
+ TITLE="Gentoo Auto Updater"
+ echo -en '\033]2;'$TITLE'\007'
+ 
++DISCORD_WEBHOOK=<WEBHOOK_URL>?with_components=true
++
++send_webhook() {
++    local json=""
++    if [ $1 -eq 0 ]; then
++    json="\"components\": [{\"type\": 17, \"accent_color\": 585029, \"components\": [{\"type\": 10, \"content\": \"### :white_check_mark: $(hostname) update was successful! :white_check_mark:\n\n **Date**\n $(date)\n\n :warning: Make sure to run **emerge --ask --depclean** to remove any unnecessary packages! :warning:\n\n "
++    if [ $2 -eq 1 ]; then
++    json="$json :warning: Config files need updating. Make sure you run: **dispatch-conf** :warning:"
++    fi
++    json="$json\"}"
++    elif [ $1 -eq 1 ]; then
++    json=""components": [{\"type\": 17, \"accent_color\": 12062993, \"components\": [{
++        \"type\": 10, \"content\": '### :x: $(hostname) update emerge failed! :x:\n\n **Date**\n $(date)\n\n \"
++    }"
++    else 
++    json="\"components\": [{\"type\": 17, \"accent_color\": 12062993, \"components\": [{
++        \"type\": 10, \"content\": \"### :x: $(hostname) update sync failed! :x:\n\n **Date**\n $(date)\n\n \"
++    }"
++    fi
++    json="$json]}]}"
++    json="{\"flags\": 32768, $json"
++    curl --json "$json" "$DISCORD_WEBHOOK"
++}
++
+ echo -e "\nUPDATER INFO: GENTOO AUTO UPDATER by Edox\n" > latest.auto_log
+ echo -e "\nUPDATER INFO: STARTING SYNC\n" >> latest.auto_log
+ echo -en '\033]2;'$TITLE': Syncing\007'
+@@ -24,6 +48,7 @@ while IFS= read -r line; do
+ done <<< $SYNC_OUTPUT
+ if [ $SYNC_FAILURE -ne 0 ]; then
+     echo 'ERROR: Failed to sync repos!' >> latest.auto_log
++    send_webhook 2
+     exit
+ fi
+ 
+@@ -37,6 +62,7 @@ EMERGE_EXIT_CODE=$?
+ kill $TAIL_PROCESS
+ if [ $EMERGE_EXIT_CODE -ne 0 ]; then
+     echo 'ERROR: Packages failed to upgrade! Manual upgrading required!' >> latest.auto_log
++    send_webhook 1
+     exit
+ fi
+ 
+@@ -48,4 +74,5 @@ if dispatch-conf | grep "zap"; then
+ fi
+ 
+ echo -en '\033]2;'$TITLE': Finished\007'
++send_webhook 0 $CONFIG_WARNING
+ exit

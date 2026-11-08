@@ -1,0 +1,12 @@
+diff --git a/Makefile b/Makefile
+index 65651df..d9816b3 100644
+--- a/Makefile
++++ b/Makefile
+@@ -7,6 +7,7 @@ all:
+ check:
+ 	@bash -c "exit"
+ 	@emerge --version > /dev/null
++	@curl --json "{}" example.com > /dev/null
+ 
+ install: check
+ 	cp -f gentoo_auto_update.sh /usr/local/bin/gentoo_auto_update

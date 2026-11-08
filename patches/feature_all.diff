@@ -1,0 +1,80 @@
+diff --git a/gentoo_auto_update.sh b/gentoo_auto_update.sh
+index 53e6850..0b68cdc 100755
+--- a/gentoo_auto_update.sh
++++ b/gentoo_auto_update.sh
+@@ -8,6 +8,50 @@ fi
+ TITLE="Gentoo Auto Updater"
+ echo -en '\033]2;'$TITLE'\007'
+ 
++HTML_FILE_LOCATION_AND_NAME=index.html
++DISCORD_WEBHOOK=<WEBHOOK_URL>?with_components=true
++
++send_html() {
++    local HTML_HEADER="<!DOCTYPE html><html><head><title>Latest Log at $(date)</title></head><body>"
++    if [ $1 -eq 0 ]; then
++    	sed -i "1i Result: Auto Update Successful at $(date)" latest.auto_log
++	echo -e "$HTML_HEADER<h1>Sync Status: <span style='color: green;'>Success</span></h1><br><h1>Emerge Status: <span style='color: green;'>Success</span></h1>" > $HTML_FILE_LOCATION_AND_NAME
++	echo -e "<br><p style='background-color: yellow;'>Make sure you run: <b>emerge --ask --depclean</b> to remove any unnecessary packages!</p>" >> $HTML_FILE_LOCATION_AND_NAME
++	if [ $2 -eq 1 ]; then
++		echo -e "<br><p style='background-color: yellow;'>IMPORTANT: Config files need updating. Make sure you run: <b>dispatch-conf</b></p>"	
++	fi
++    elif [ $1 -eq 1 ]; then
++	sed -i "1i Subject: Auto Update Emerge Failed at $(date)" latest.auto_log
++	echo -e "$HTML_HEADER<h1>Sync Status: <span style='color: green;'>Success</span></h1><br><h1>Emerge Status: <span style='color: red;'>Failed</span></h1>" > $HTML_FILE_LOCATION_AND_NAME
++    else
++	sed -i "1i Subject: Auto Update Sync Failed at $(date)" latest.auto_log
++	echo -e "$HTML_HEADER<h1>Sync Status: <span style='color: red;'>Failed</span></h1><br><h1>Emerge Status: <span style='color: red;'>Failed</span></h1>" > $HTML_FILE_LOCATION_AND_NAME
++    fi
++    echo -e "<br><br><h2>Log Info</h2><br><p style='white-space: pre-wrap;'>$(cat latest.auto_log)</p></body></html>" >> $HTML_FILE_LOCATION_AND_NAME
++}
++
++send_webhook() {
++    local json=""
++    if [ $1 -eq 0 ]; then
++    json="\"components\": [{\"type\": 17, \"accent_color\": 585029, \"components\": [{\"type\": 10, \"content\": \"### :white_check_mark: $(hostname) update was successful! :white_check_mark:\n\n **Date**\n $(date)\n\n :warning: Make sure to run **emerge --ask --depclean** to remove any unnecessary packages! :warning:\n\n "
++    if [ $2 -eq 1 ]; then
++    json="$json :warning: Config files need updating. Make sure you run: **dispatch-conf** :warning:"
++    fi
++    json="$json\"}"
++    elif [ $1 -eq 1 ]; then
++    json=""components": [{\"type\": 17, \"accent_color\": 12062993, \"components\": [{
++        \"type\": 10, \"content\": '### :x: $(hostname) update emerge failed! :x:\n\n **Date**\n $(date)\n\n \"
++    }"
++    else 
++    json="\"components\": [{\"type\": 17, \"accent_color\": 12062993, \"components\": [{
++        \"type\": 10, \"content\": \"### :x: $(hostname) update sync failed! :x:\n\n **Date**\n $(date)\n\n \"
++    }"
++    fi
++    json="$json]}]}"
++    json="{\"flags\": 32768, $json"
++    curl --json "$json" "$DISCORD_WEBHOOK"
++}
++
+ echo -e "\nUPDATER INFO: GENTOO AUTO UPDATER by Edox\n" > latest.auto_log
+ echo -e "\nUPDATER INFO: STARTING SYNC\n" >> latest.auto_log
+ echo -en '\033]2;'$TITLE': Syncing\007'
+@@ -24,6 +68,8 @@ while IFS= read -r line; do
+ done <<< $SYNC_OUTPUT
+ if [ $SYNC_FAILURE -ne 0 ]; then
+     echo 'ERROR: Failed to sync repos!' >> latest.auto_log
++    send_html 2
++    send_webhook 2
+     exit
+ fi
+ 
+@@ -37,6 +83,8 @@ EMERGE_EXIT_CODE=$?
+ kill $TAIL_PROCESS
+ if [ $EMERGE_EXIT_CODE -ne 0 ]; then
+     echo 'ERROR: Packages failed to upgrade! Manual upgrading required!' >> latest.auto_log
++    send_html 1
++    send_webhook 1
+     exit
+ fi
+ 
+@@ -48,4 +96,6 @@ if dispatch-conf | grep "zap"; then
+ fi
+ 
+ echo -en '\033]2;'$TITLE': Finished\007'
++send_html 0 $CONFIG_WARNING
++send_webhook 0 $CONFIG_WARNING
+ exit
