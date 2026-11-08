@@ -27,6 +27,7 @@ feature-discord:
 
 feature-all:
 	git apply patches/feature_all.diff
+	git apply patches/feature_check.diff
 
 uninstall:
 	rm -f /usr/local/bin/gentoo_auto_update
